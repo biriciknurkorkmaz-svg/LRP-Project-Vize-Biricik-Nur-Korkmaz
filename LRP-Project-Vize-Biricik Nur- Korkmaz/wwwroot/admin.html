@@ -1,0 +1,181 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>LRP - Admin Paneli</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            display: flex;
+            min-height: 100vh;
+            background: #f4f7f6;
+            margin: 0;
+        }
+
+        #sidebar {
+            width: 250px;
+            background: #343a40;
+            color: white;
+            padding: 20px;
+            flex-shrink: 0;
+        }
+
+        #content {
+            flex: 1;
+            padding: 30px;
+        }
+
+        .nav-link {
+            color: #ccc;
+            cursor: pointer;
+            text-decoration: none;
+            display: block;
+            padding: 10px;
+        }
+
+            .nav-link:hover {
+                color: white;
+                background: #495057;
+                border-radius: 5px;
+            }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h4>LRP Admin</h4>
+        <hr>
+        <div class="nav flex-column">
+            <a class="nav-link" onclick="loadPage('labs')"><i class="fa fa-flask"></i> Laboratuvarlar</a>
+            <a class="nav-link" onclick="loadPage('computers')"><i class="fa fa-desktop"></i> Bilgisayarlar</a>
+            <a class="nav-link" onclick="loadPage('assignment')"><i class="fa fa-user-plus"></i> Sorumluluk Atama</a>
+            <a class="nav-link text-danger mt-5" href="index.html"><i class="fa fa-sign-out"></i> Çıkış</a>
+        </div>
+    </div>
+
+    <div id="content">
+        <div id="main-area">
+            <h2>Hoş Geldiniz, Admin</h2>
+            <p>Lütfen soldaki menüden bir işlem seçin.</p>
+        </div>
+    </div>
+
+    <script>
+        // SAYFA YÜKLEME FONKSİYONU
+        async function loadPage(page) {
+            const area = document.getElementById('main-area');
+
+            if (page === 'labs') {
+                area.innerHTML = `
+                    <h3>Laboratuvar Yönetimi</h3>
+                    <div class="card p-3 mb-3">
+                        <input type="text" id="labName" placeholder="Lab Adı (Örn: Lab 1)" class="form-control mb-2">
+                        <input type="text" id="labLoc" placeholder="Konum (Örn: Kat 2)" class="form-control mb-2">
+                        <button class="btn btn-success" onclick="addLab()">Lab Ekle</button>
+                    </div>
+                    <div id="labList">Yükleniyor...</div>`;
+                fetchLabs();
+            }
+            else if (page === 'computers') {
+                area.innerHTML = `
+                    <h3>Bilgisayar Yönetimi</h3>
+                    <div class="card p-3 mb-3">
+                        <select id="pcLabId" class="form-select mb-2"><option>Yükleniyor...</option></select>
+                        <input type="text" id="pcBrand" placeholder="Marka" class="form-control mb-2">
+                        <input type="text" id="pcCPU" placeholder="İşlemci" class="form-control mb-2">
+                        <input type="text" id="pcRAM" placeholder="RAM" class="form-control mb-2">
+                        <button class="btn btn-primary" onclick="addComputer()">PC Ekle</button>
+                    </div>
+                    <div id="pcList">Yükleniyor...</div>`;
+                fillLabSelect();
+                fetchComputers();
+            }
+            else if (page === 'assignment') {
+                area.innerHTML = `
+                    <h3>Sorumluluk Atama</h3>
+                    <div class="card p-3 mb-3">
+                        <select id="assignPcId" class="form-select mb-2"><option>PC Seçin</option></select>
+                        <input type="text" id="stdNo" placeholder="Öğrenci No" class="form-control mb-2">
+                        <button class="btn btn-warning" onclick="assignPC()">Ata ve Hesap Oluştur</button>
+                    </div>`;
+                fillPcSelect();
+            }
+        }
+
+        // --- LABORATUVAR FONKSİYONLARI ---
+        async function fetchLabs() {
+            const res = await fetch('/api/labs');
+            const data = await res.json();
+            let html = '<table class="table"><thead><tr><th>ID</th><th>Ad</th><th>Konum</th></tr></thead><tbody>';
+            data.forEach(l => { html += `<tr><td>${l.id}</td><td>${l.name}</td><td>${l.location}</td></tr>`; });
+            html += '</tbody></table>';
+            document.getElementById('labList').innerHTML = html;
+        }
+
+        async function addLab() {
+            const n = document.getElementById('labName').value;
+            const l = document.getElementById('labLoc').value;
+            await fetch('/api/labs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ Name: n, Location: l })
+            });
+            loadPage('labs');
+        }
+
+        // --- BİLGİSAYAR FONKSİYONLARI ---
+        async function fetchComputers() {
+            const res = await fetch('/api/computers');
+            const data = await res.json();
+            let html = '<table class="table"><thead><tr><th>Kod</th><th>Marka</th><th>Özellik</th></tr></thead><tbody>';
+            data.forEach(p => { html += `<tr><td>${p.assetCode}</td><td>${p.brand}</td><td>${p.cpu}/${p.ram}</td></tr>`; });
+            html += '</tbody></table>';
+            document.getElementById('pcList').innerHTML = html;
+        }
+
+        async function addComputer() {
+            const pc = {
+                labId: parseInt(document.getElementById('pcLabId').value),
+                brand: document.getElementById('pcBrand').value,
+                cpu: document.getElementById('pcCPU').value,
+                ram: document.getElementById('pcRAM').value
+            };
+            await fetch('/api/computers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(pc)
+            });
+            loadPage('computers');
+        }
+
+        // --- ATAMA FONKSİYONU ---
+        async function assignPC() {
+            const d = {
+                computerId: parseInt(document.getElementById('assignPcId').value),
+                studentNumber: document.getElementById('stdNo').value
+            };
+            await fetch('/api/assign', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(d)
+            });
+            alert("Atama Başarılı!");
+        }
+
+        // --- YARDIMCI SEÇİCİLER ---
+        async function fillLabSelect() {
+            const res = await fetch('/api/labs');
+            const labs = await res.json();
+            document.getElementById('pcLabId').innerHTML = labs.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
+        }
+
+        async function fillPcSelect() {
+            const res = await fetch('/api/computers');
+            const pcs = await res.json();
+            document.getElementById('assignPcId').innerHTML = pcs.map(p => `<option value="${p.id}">${p.assetCode}</option>`).join('');
+        }
+    </script>
+
+</body>
+</html>
